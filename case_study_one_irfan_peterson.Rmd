@@ -1,0 +1,203 @@
+---
+title: 'Google Data Analytics Capstone Project: Case Study 1'
+author: "Irfan Peterson"
+date: "2022-08-15"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+
+## Clearing Workspace
+```{r}
+rm(list=ls())
+```
+
+## Setting Workspace
+```{r}
+setwd("~/Google Data Analytics/8. Google Data Analytics Capstone,  Complete a Case Study/irfan_peterson_case_study_1")
+```
+
+
+## Setting Up My Environment by Installing and Loading Various Analysis Packages
+
+```{r}
+install.packages("tidyverse", repos = "http://cran.us.r-project.org")
+install.packages("here", repos = "http://cran.us.r-project.org")
+install.packages("skimr", repos = "http://cran.us.r-project.org")
+install.packages("janitor", repos = "http://cran.us.r-project.org")
+install.packages("DescTools", repos = "http://cran.us.r-project.org")
+
+
+library("tidyverse") # A system of packages for data manipulation, exploration and visualization
+library("dplyr") # Useful for common data manipulation tasks
+library("ggplot2") # Useful for creating various visualizations
+library("readr") # Tool for reading rectangular data, useful for importing csv dataset
+library("tidyr") # Tool for data cleaning
+library("lubridate") # Used to convert different data types into date and time formats
+library("here") # Makes referencing easier
+library("skimr") # Useful to make summarizing data easier
+library("janitor") # Has functions for cleaning data
+library("DescTools") #Tools for descriptive analysis
+```
+
+
+
+## Importing Cyclist Datasets and Assigning Them to a More Readable Variable
+
+```{r}
+td_08_21 <- read_csv("202108-divvy-tripdata.csv")
+td_09_21 <- read_csv("202109-divvy-tripdata.csv")
+td_10_21 <- read_csv("202110-divvy-tripdata.csv")
+td_11_21 <- read_csv("202111-divvy-tripdata.csv")
+td_12_21 <- read_csv("202112-divvy-tripdata.csv")
+td_01_22 <- read_csv("202201-divvy-tripdata.csv")
+td_02_22 <- read_csv("202202-divvy-tripdata.csv")
+td_03_22 <- read_csv("202203-divvy-tripdata.csv")
+td_04_22 <- read_csv("202204-divvy-tripdata.csv")
+td_05_22 <- read_csv("202205-divvy-tripdata.csv")
+td_06_22 <- read_csv("202206-divvy-tripdata.csv")
+td_07_22 <- read_csv("202207-divvy-tripdata.csv")
+```
+
+## Reviewing the Data Frame of the Dataset Using Glimpse Function
+```{r}
+glimpse(td_08_21)
+glimpse(td_09_21)
+glimpse(td_10_21)
+glimpse(td_11_21)
+glimpse(td_12_21)
+glimpse(td_01_22)
+glimpse(td_02_22)
+glimpse(td_03_22)
+glimpse(td_04_22)
+glimpse(td_05_22)
+glimpse(td_06_22)
+glimpse(td_07_22)
+```
+
+
+## Combining the Twelve Datasets into One Dataset
+```{r}
+td_all <- rbind(td_01_22,td_02_22, td_03_22, td_04_22, td_05_22, td_06_22, td_07_22, td_08_21, td_09_21, td_10_21, td_11_21, td_12_21)
+```
+
+## Formatting and Verifying the Structure of the Combined Dataset
+```{r}
+
+td_all$member_casual <- as.factor(td_all$member_casual) # Formatting membership column to format for analysis
+clean_names(td_all) # Clean column names and make the formatting consistent
+
+str(td_all) # Reviewing the structure of the combined data set
+```
+
+
+## Introducing New Variables for Analysis
+```{r}
+nv_td_all <- td_all %>%
+  mutate(trip_length_sec = ended_at - started_at) %>% #Compute duration of trip
+  mutate(trip_length_hms = seconds_to_period(trip_length_sec)) #%>% #Duration in HH:MM:SS for better readability for users
+  
+nv_td_all$start_day <- weekdays(td_all$started_at, abbreviate = TRUE) #Output the day when the trip started
+nv_td_all$start_day <- ordered(nv_td_all$start_day, levels = c("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")) #ordering days of the week
+
+nv_td_all$sd_yr <- year(nv_td_all$started_at) # Numeric column for year
+nv_td_all$sd_mnth <- month(nv_td_all$started_at) # Numeric column for month
+nv_td_all$sd_dy <- day(nv_td_all$started_at) # Numeric column for day
+nv_td_all$sd_hr <- hour(nv_td_all$started_at) # Numeric column for hour
+
+```
+
+
+## Cleaning the Dataset
+```{r}
+
+nv_td_all <- subset(nv_td_all, trip_length_sec > 0) # Take out negative values from the new variable, trip_length_sec
+q1 <- quantile(nv_td_all$trip_length_sec, .25) # Establishes the 25th quartile value
+q3 <- quantile(nv_td_all$trip_length_sec, .75) # Establishes the 75th quartile value
+iqr <- IQR(nv_td_all$trip_length_sec)
+no_outl_td <- subset(nv_td_all, nv_td_all$trip_length_sec > (q1 - 1.5 * iqr) & nv_td_all$trip_length_sec < (q3 + 1.5 * iqr)) #Removes outliers from the dataset
+
+
+cln_td_all <- no_outl_td %>%
+  drop_na() %>% # Removes NA values
+  distinct() # %>% # Removes duplicate data
+  #str_trim() # Removes trailing and leading white spaces
+
+```
+ 
+ 
+
+## Descriptive & Regression Analysis
+```{r}
+# Measure of central tendency (max, min, mode,mode)
+aggregate(trip_length_sec ~ member_casual, cln_td_all, mean) # Mean  of trip length
+aggregate(trip_length_sec ~ member_casual, cln_td_all, max) # Max of trip length
+aggregate(trip_length_sec ~ member_casual, cln_td_all, min) # Min of trip length
+Mode(cln_td_all$start_day) # Finding the most frequent day bikes are being rented out
+
+# Average length of ride between members and casual riders
+cln_td_all %>%  
+  group_by(member_casual) %>%
+  summarize(avg_tl = mean(trip_length_sec))
+
+# Average length of ride for users by day of the week
+aggregate(trip_length_sec ~ start_day + member_casual, cln_td_all, mean)
+
+# Logistic regression to predict member & casual riders
+log_reg <- glm(member_casual ~ start_day, family = "binomial", data = cln_td_all)
+summary(log_reg)
+
+```
+
+## Exporting the Data as CVS File
+```{r}
+write.csv(cln_td_all, "cln_case_study_1")
+```
+
+## Data Visualizations
+```{r}
+
+#1. Bar chart of bike rented per day, separated between member and casual rider
+ggplot(cln_td_all)+
+  geom_bar(mapping = aes(x = start_day, fill = start_day))+
+  labs(title = "Frequency of Bike Rented by Day", subtitle = "Over the Past 12 Months", x = "Day of the Week")+
+  facet_wrap(~member_casual)
+
+#2. Bar chart of distribution of type of bikes, separated between member and casual rider
+ggplot(cln_td_all)+
+  geom_bar(mapping = aes(x = rideable_type, fill = rideable_type))+
+  labs(title = "Frequency of Bike Rented by Type of Bike", x = "Classification of Bike")+
+  guides(x = guide_axis(n.dodge = 2))+ 
+  facet_wrap(~member_casual)
+
+#3. Bar chart of distribution of bikes rented, grouped by days of the week between member and casual rider
+ggplot(cln_td_all, aes(x = member_casual, y = trip_length_sec, fill = member_casual))+
+  geom_bar(stat = "identity")+
+  labs(title = "Count of Bike Rented Seperated by Day of the Week", x = "Membership Status")+
+  guides(x = guide_axis(n.dodge = 2))+ 
+  facet_grid(~start_day)+
+  scale_fill_manual(values = c("casual" = "cornflowerblue",
+                               "member" = "chocolate1"))
+
+#4. Bar chart of distribution of bikes rented, grouped by month between member and casual rider
+ggplot(cln_td_all)+
+  geom_bar(mapping = aes(x = member_casual, fill = member_casual))+
+  labs(title = "Frequency of Bike Rented by Month", x = "Membership Status")+
+  guides(x = guide_axis(n.dodge = 2))+ 
+  facet_grid(~sd_mnth)+
+  scale_fill_manual(values = c("casual" = "cornflowerblue",
+                               "member" = "chocolate1"))
+
+#5. Bar hart of distribution of bikes rented, rented by Hour of the day, separated by day of the Week and membership
+ggplot(cln_td_all)+
+  geom_bar(mapping = aes(x = sd_hr, fill = member_casual))+
+  labs(title = "Distribution of Bike Rented, Seperated by Hour, Membership and Day of the Week", x = "Hour of the Day")+
+  guides(x = guide_axis(n.dodge = 2))+ 
+  facet_grid(start_day~member_casual)+
+  scale_fill_manual(values = c("casual" = "cornflowerblue",
+                               "member" = "chocolate1"))
+
+```
+
+## Thank you!!!
