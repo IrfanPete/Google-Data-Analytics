@@ -1,2 +1,2 @@
 # Google-Data-Analytics
-## My codes for the Google Data Analytics, specifically the Capstone Case Study 1
+### My codes for the Google Data Analytics work, specifically the Capstone Case Study 1
